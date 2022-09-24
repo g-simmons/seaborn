@@ -119,7 +119,8 @@ class Grid(_BaseGrid):
         kwargs.setdefault("rect", self._tight_layout_rect)
         if self._tight_layout_pad is not None:
             kwargs.setdefault("pad", self._tight_layout_pad)
-        self._figure.tight_layout(*args, **kwargs)
+        if isinstance(self._figure, mpl.figure.Figure):
+            self._figure.tight_layout(*args, **kwargs)
         return self
 
     def add_legend(
@@ -182,6 +183,7 @@ class Grid(_BaseGrid):
         # Set default legend kwargs
         kwargs.setdefault("scatterpoints", 1)
 
+        # if self._legend_out and not isinstance(self._figure, mpl.figure.SubFigure):
         if self._legend_out:
 
             kwargs.setdefault("frameon", False)
@@ -201,8 +203,19 @@ class Grid(_BaseGrid):
 
             # Calculate and set the new width of the figure so the legend fits
             legend_width = figlegend.get_window_extent().width / self._figure.dpi
-            fig_width, fig_height = self._figure.get_size_inches()
-            self._figure.set_size_inches(fig_width + legend_width, fig_height)
+
+            if isinstance(self._figure, mpl.figure.SubFigure):
+                fig_width = self._figure.bbox.width / self._figure.dpi
+                fig_height = self._figure.bbox.height / self._figure.dpi
+            else:
+                fig_width, fig_height = self._figure.get_size_inches()
+
+            if not isinstance(self._figure, mpl.figure.SubFigure):
+                self._figure.set_size_inches(fig_width + legend_width, fig_height)
+            else:
+                self._figure.figure.set_size_inches(
+                    fig_width + legend_width, fig_height
+                )
 
             # Draw the plot again to get the new transformations
             _draw_figure(self._figure)
@@ -210,7 +223,13 @@ class Grid(_BaseGrid):
             # Now calculate how much space we need on the right side
             legend_width = figlegend.get_window_extent().width / self._figure.dpi
             space_needed = legend_width / (fig_width + legend_width)
-            margin = 0.04 if self._margin_titles else 0.01
+            margin = (
+                0.04
+                if self._margin_titles
+                else 0.05
+                if isinstance(self._figure, mpl.figure.SubFigure)
+                else 0.01
+            )
             self._space_needed = margin + space_needed
             right = 1 - self._space_needed
 
